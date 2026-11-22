@@ -29,6 +29,7 @@ import helium314.keyboard.keyboard.KeyboardLayoutSet.Companion.KeyboardLayoutSet
 import helium314.keyboard.keyboard.KeyboardTheme.Companion.getKeyboardTheme
 import helium314.keyboard.keyboard.clipboard.ClipboardHistoryView
 import helium314.keyboard.keyboard.clipboard.HistoryMode
+import helium314.keyboard.keyboard.sticker.StickerFolder
 import helium314.keyboard.keyboard.emoji.EmojiPalettesView
 import helium314.keyboard.keyboard.internal.KeyboardState
 import helium314.keyboard.keyboard.internal.LayoutDirective
@@ -393,7 +394,11 @@ class KeyboardSwitcher private constructor() {
             latinIME.currentInputEditorInfo, Settings.getValues(),
             latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState, null
         )
-        if (wasEmoji) {
+        if (latinIME.currentInputEditorInfo.inputType != InputType.TYPE_NULL
+            && StickerFolder.consumeReopen(latinIME)
+        ) {
+            setStickersKeyboard()
+        } else if (wasEmoji) {
             setEmojiKeyboard()
         } else if (wasStickers && latinIME.currentInputEditorInfo.inputType != InputType.TYPE_NULL) {
             setStickersKeyboard()

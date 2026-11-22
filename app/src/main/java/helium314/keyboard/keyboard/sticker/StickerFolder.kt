@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 object StickerFolder {
     const val PREF_URI = "sticker_folder_uri"
     const val PREF_IMPORTED = "sticker_folder_imported"
+    private const val PREF_REOPEN = "sticker_folder_reopen"
     private val syncMutex = Mutex()
 
     fun getUri(context: Context): Uri? =
@@ -39,6 +40,17 @@ object StickerFolder {
             putString(PREF_URI, uri.toString())
             remove(PREF_IMPORTED)
         }
+        return true
+    }
+
+    fun requestReopen(context: Context) {
+        context.prefs().edit { putBoolean(PREF_REOPEN, true) }
+    }
+
+    fun consumeReopen(context: Context): Boolean {
+        val prefs = context.prefs()
+        if (!prefs.getBoolean(PREF_REOPEN, false)) return false
+        prefs.edit { remove(PREF_REOPEN) }
         return true
     }
 

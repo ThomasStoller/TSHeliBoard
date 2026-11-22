@@ -16,8 +16,6 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import helium314.keyboard.event.HapticEvent
@@ -81,8 +79,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
     @Volatile private var syncingStickers = false
     private var mode = HistoryMode.CLIPS
     private lateinit var currentEditorInfo: EditorInfo
-    private var navBarInset = 0
-    private val bottomRowExtra by lazy { (6 * resources.displayMetrics.density).toInt() }
     private var labelSize = 0f
     private val tabBarHeight by lazy { resources.getDimensionPixelSize(R.dimen.config_history_tab_height) }
 
@@ -108,8 +104,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val res = context.resources
         // The main keyboard expands to the entire this {@link KeyboardView}.
         val width = ResourceUtils.getKeyboardWidth(context, Settings.getValues()) + paddingLeft + paddingRight
-        val height = (ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) - navBarInset)
-            .coerceAtLeast(0) + paddingTop + paddingBottom
+        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom
         setMeasuredDimension(width, height)
     }
 
@@ -130,7 +125,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             layoutManager = StaggeredGridLayoutManager(colCount, StaggeredGridLayoutManager.VERTICAL)
             @Suppress("deprecation") // "no cache" should be fine according to warning in https://developer.android.com/reference/android/view/ViewGroup#setPersistentDrawingCache(int)
             persistentDrawingCache = PERSISTENT_NO_CACHE
-            clipboardLayoutParams.setListProperties(this, listTopOffset())
+            clipboardLayoutParams.setListProperties(this)
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
         tabClips = findViewById(R.id.history_tab_clips)
@@ -142,16 +137,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
         addStickersButton.setOnClickListener { startStickerImport() }
         folderButton.setOnClickListener { startStickerFolderPicker() }
         folderButton.setOnLongClickListener { clearStickerFolder(); true }
-        ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
-            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            if (bottom != navBarInset) {
-                navBarInset = bottom
-                updateListHeight()
-                view.requestLayout()
-            }
-            insets
-        }
-        ViewCompat.requestApplyInsets(this)
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip!!
         getEnabledClipboardToolbarKeys(context.prefs()).forEach {
             val key = createToolbarKey(context, it)
@@ -188,15 +173,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val keyboardView = findViewById<MainKeyboardView>(R.id.bottom_row_keyboard)
         keyboardView.setKeyboardActionListener(listener)
         PointerTracker.switchTo(keyboardView)
-        val configuredHeight = clipboardLayoutParams.bottomRowKeyboardHeight
-        val bottomRowHeight = if (configuredHeight > 0) {
-            maxOf(configuredHeight - keyboardView.paddingBottom, configuredHeight / 2)
-        } else null
-        val kls = if (bottomRowHeight != null) {
-            KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo, bottomRowHeight)
-        } else {
-            KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo)
-        }
+        val kls = KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo)
         val keyboard = kls.getKeyboard(KeyboardElement.CLIPBOARD_BOTTOM_ROW)
         keyboardView.setKeyboard(keyboard)
     }
@@ -247,7 +224,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             val keyboardWidth = ResourceUtils.getKeyboardWidth(context, settings.current)
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
-            ClipboardLayoutParams(context).setListProperties(this, listTopOffset())
+            ClipboardLayoutParams(context).setListProperties(this)
 
             // set side padding
             val keyboardAttr = context.obtainStyledAttributes(
@@ -312,14 +289,6 @@ class ClipboardHistoryView @JvmOverloads constructor(
             folderButton.alpha = if (StickerFolder.getUri(context) != null) 1f else 0.5f
     }
 
-    private fun listTopOffset() =
-        tabBarHeight + navBarInset + if (navBarInset > 0) bottomRowExtra else 0
-
-    private fun updateListHeight() {
-        if (!this::clipboardRecyclerView.isInitialized) return
-        clipboardLayoutParams.setListProperties(clipboardRecyclerView, listTopOffset())
-    }
-
     private fun updateTabState() {
         if (!this::tabClips.isInitialized) return
         val stickers = mode == HistoryMode.STICKERS
@@ -350,6 +319,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     private fun startStickerFolderPicker() {
+        StickerFolder.requestReopen(context)
         val intent = Intent(context, StickerImportActivity::class.java)
             .setAction(StickerImportActivity.ACTION_PICK_STICKER_FOLDER)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
