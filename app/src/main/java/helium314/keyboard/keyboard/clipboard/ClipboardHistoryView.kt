@@ -15,6 +15,8 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import helium314.keyboard.event.HapticEvent
@@ -78,6 +80,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     @Volatile private var syncingStickers = false
     private var mode = HistoryMode.CLIPS
     private lateinit var currentEditorInfo: EditorInfo
+    private var navBarInset = 0
     private var labelSize = 0f
     private val tabBarHeight by lazy { resources.getDimensionPixelSize(R.dimen.config_history_tab_height) }
 
@@ -103,7 +106,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val res = context.resources
         // The main keyboard expands to the entire this {@link KeyboardView}.
         val width = ResourceUtils.getKeyboardWidth(context, Settings.getValues()) + paddingLeft + paddingRight
-        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom
+        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + navBarInset
         setMeasuredDimension(width, height)
     }
 
@@ -136,6 +139,20 @@ class ClipboardHistoryView @JvmOverloads constructor(
         addStickersButton.setOnClickListener { startStickerImport() }
         folderButton.setOnClickListener { startStickerFolderPicker() }
         folderButton.setOnLongClickListener { clearStickerFolder(); true }
+        ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            if (bottom != navBarInset) {
+                navBarInset = bottom
+                val bottomRow = view.findViewById<View>(R.id.bottom_row_keyboard)
+                (bottomRow?.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let {
+                    it.bottomMargin = bottom
+                    bottomRow.layoutParams = it
+                }
+                view.requestLayout()
+            }
+            insets
+        }
+        ViewCompat.requestApplyInsets(this)
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip!!
         getEnabledClipboardToolbarKeys(context.prefs()).forEach {
             val key = createToolbarKey(context, it)
@@ -167,7 +184,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val keyboardView = findViewById<MainKeyboardView>(R.id.bottom_row_keyboard)
         keyboardView.setKeyboardActionListener(listener)
         PointerTracker.switchTo(keyboardView)
-        val kls = KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo)
+        val bottomRowHeight = (clipboardLayoutParams.bottomRowKeyboardHeight - keyboardView.paddingBottom)
+            .coerceAtLeast(1)
+        val kls = KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(
+            context, editorInfo, bottomRowHeight
+        )
         val keyboard = kls.getKeyboard(KeyboardElement.CLIPBOARD_BOTTOM_ROW)
         keyboardView.setKeyboard(keyboard)
     }

@@ -163,7 +163,8 @@ class KeyboardLayoutSet internal constructor(private val mContext: Context, priv
         companion object {
             private val EMPTY_EDITOR_INFO = EditorInfo()
 
-            fun buildEmojiClipBottomRow(context: Context, ei: EditorInfo?): KeyboardLayoutSet {
+            @JvmOverloads
+            fun buildEmojiClipBottomRow(context: Context, ei: EditorInfo?, heightOverride: Int? = null): KeyboardLayoutSet {
                 val builder = Builder(context, ei, null)
                 builder.params.mode = KeyboardMode.TEXT
                 val sv = Settings.getValues()
@@ -171,7 +172,7 @@ class KeyboardLayoutSet internal constructor(private val mContext: Context, priv
                 builder.params.emojiSearchAvailable = sv.mLocale in dictLocales || sv.mSecondaryLocales.any { it in dictLocales }
                 val width = ResourceUtils.getKeyboardWidth(context, sv)
                 // actually the keyboard does not have full height, but at this point we use it to get correct key heights
-                val height = ResourceUtils.getKeyboardHeight(context.resources, sv)
+                val height = heightOverride ?: ResourceUtils.getKeyboardHeight(context.resources, sv)
                 builder.setKeyboardGeometry(width, height)
                 builder.setSubtype(getInstance().currentSubtype)
                 return builder.build()
