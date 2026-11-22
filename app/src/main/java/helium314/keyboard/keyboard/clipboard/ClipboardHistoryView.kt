@@ -82,6 +82,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private var mode = HistoryMode.CLIPS
     private lateinit var currentEditorInfo: EditorInfo
     private var navBarInset = 0
+    private val bottomRowExtra by lazy { (6 * resources.displayMetrics.density).toInt() }
     private var labelSize = 0f
     private val tabBarHeight by lazy { resources.getDimensionPixelSize(R.dimen.config_history_tab_height) }
 
@@ -107,7 +108,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val res = context.resources
         // The main keyboard expands to the entire this {@link KeyboardView}.
         val width = ResourceUtils.getKeyboardWidth(context, Settings.getValues()) + paddingLeft + paddingRight
-        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + navBarInset
+        val height = (ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) - navBarInset)
+            .coerceAtLeast(0) + paddingTop + paddingBottom
         setMeasuredDimension(width, height)
     }
 
@@ -128,7 +130,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             layoutManager = StaggeredGridLayoutManager(colCount, StaggeredGridLayoutManager.VERTICAL)
             @Suppress("deprecation") // "no cache" should be fine according to warning in https://developer.android.com/reference/android/view/ViewGroup#setPersistentDrawingCache(int)
             persistentDrawingCache = PERSISTENT_NO_CACHE
-            clipboardLayoutParams.setListProperties(this, tabBarHeight)
+            clipboardLayoutParams.setListProperties(this, listTopOffset())
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
         tabClips = findViewById(R.id.history_tab_clips)
@@ -144,11 +146,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             if (bottom != navBarInset) {
                 navBarInset = bottom
-                val bottomRow = view.findViewById<View>(R.id.bottom_row_keyboard)
-                (bottomRow?.layoutParams as? android.widget.LinearLayout.LayoutParams)?.let {
-                    it.bottomMargin = bottom
-                    bottomRow.layoutParams = it
-                }
+                updateListHeight()
                 view.requestLayout()
             }
             insets
@@ -249,7 +247,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             val keyboardWidth = ResourceUtils.getKeyboardWidth(context, settings.current)
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
-            ClipboardLayoutParams(context).setListProperties(this, tabBarHeight)
+            ClipboardLayoutParams(context).setListProperties(this, listTopOffset())
 
             // set side padding
             val keyboardAttr = context.obtainStyledAttributes(
@@ -312,6 +310,14 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private fun updateFolderButton() {
         if (this::folderButton.isInitialized)
             folderButton.alpha = if (StickerFolder.getUri(context) != null) 1f else 0.5f
+    }
+
+    private fun listTopOffset() =
+        tabBarHeight + navBarInset + if (navBarInset > 0) bottomRowExtra else 0
+
+    private fun updateListHeight() {
+        if (!this::clipboardRecyclerView.isInitialized) return
+        clipboardLayoutParams.setListProperties(clipboardRecyclerView, listTopOffset())
     }
 
     private fun updateTabState() {
