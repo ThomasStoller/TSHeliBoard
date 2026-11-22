@@ -3,7 +3,7 @@
     SPDX-License-Identifier: GPL-3.0-only
 -->
 <resources>
-    <string name="english_ime_name" translatable="false">TSHeliBoard debug</string>
-    <string name="spell_checker_service_name" translatable="false">TSHeliBoard debug Spell Checker</string>
-    <string name="ime_settings" translatable="false">TSHeliBoard debug Settings</string>
+    <string name="english_ime_name" translatable="false">TSHeliBoard</string>
+    <string name="spell_checker_service_name" translatable="false">TSHeliBoard Spell Checker</string>
+    <string name="ime_settings" translatable="false">TSHeliBoard Settings</string>
 </resources>
