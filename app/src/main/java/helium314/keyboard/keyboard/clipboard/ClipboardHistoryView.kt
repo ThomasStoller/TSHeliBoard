@@ -103,7 +103,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
         val res = context.resources
         // The main keyboard expands to the entire this {@link KeyboardView}.
         val width = ResourceUtils.getKeyboardWidth(context, Settings.getValues()) + paddingLeft + paddingRight
-        val height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom
+        val mainHeight = KeyboardSwitcher.getInstance().mainKeyboardView?.height ?: 0
+        val height = if (mainHeight > 0) mainHeight
+            else ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues()) + paddingTop + paddingBottom
         val exactWidth = android.view.View.MeasureSpec.makeMeasureSpec(width, android.view.View.MeasureSpec.EXACTLY)
         val exactHeight = android.view.View.MeasureSpec.makeMeasureSpec(height, android.view.View.MeasureSpec.EXACTLY)
         super.onMeasure(exactWidth, exactHeight)
@@ -195,6 +197,12 @@ class ClipboardHistoryView @JvmOverloads constructor(
         currentEditorInfo = editorInfo
         initialize()
         setupToolbarKeys()
+        // The main keyboard reserves the navigation-bar area as bottom padding. Do the same so the
+        // bottom row ends above the system navigation buttons instead of behind them.
+        val keyboardBottomPadding = KeyboardSwitcher.getInstance().mainKeyboardView?.paddingBottom ?: 0
+        if (paddingBottom != keyboardBottomPadding) {
+            setPadding(paddingLeft, paddingTop, paddingRight, keyboardBottomPadding)
+        }
         historyManager.prepareClipboardHistory()
         historyManager.setHistoryChangeListener(this)
         clipboardAdapter.clipboardHistoryManager = historyManager
@@ -341,8 +349,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
         keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
         keyboardActionListener.onContent(sticker.getContentInfo(context))
         keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
-        if (Settings.getValues().mAlphaAfterClipHistoryEntry)
-            keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        // Deliberately stay on the sticker view so several stickers can be sent in a row.
     }
 
     private fun onStickerLongClick(sticker: Sticker) {
