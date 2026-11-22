@@ -11,6 +11,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.text.InputType
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -394,9 +395,9 @@ class KeyboardSwitcher private constructor() {
         )
         if (wasEmoji) {
             setEmojiKeyboard()
-        } else if (wasStickers) {
+        } else if (wasStickers && latinIME.currentInputEditorInfo.inputType != InputType.TYPE_NULL) {
             setStickersKeyboard()
-        } else if (wasClipboard) {
+        } else if (wasClipboard && latinIME.currentInputEditorInfo.inputType != InputType.TYPE_NULL) {
             setClipboardKeyboard()
         }
     }

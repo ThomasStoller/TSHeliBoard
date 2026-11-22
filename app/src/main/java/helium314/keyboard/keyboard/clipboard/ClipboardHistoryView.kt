@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Typeface
+import android.text.InputType
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -181,14 +182,23 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     private fun setupBottomRowKeyboard(editorInfo: EditorInfo, listener: KeyboardActionListener) {
+        // Reloads while the IME is finishing input (TYPE_NULL) can happen before a display is
+        // available. Building the bottom row then produces zero-sized keys and crashes.
+        if (editorInfo.inputType == InputType.TYPE_NULL) return
+        if (clipboardLayoutParams.bottomRowKeyboardHeight <= 0) return
+        if (ResourceUtils.getKeyboardWidth(context, Settings.getValues()) <= 0) return
         val keyboardView = findViewById<MainKeyboardView>(R.id.bottom_row_keyboard)
         keyboardView.setKeyboardActionListener(listener)
         PointerTracker.switchTo(keyboardView)
-        val bottomRowHeight = (clipboardLayoutParams.bottomRowKeyboardHeight - keyboardView.paddingBottom)
-            .coerceAtLeast(1)
-        val kls = KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(
-            context, editorInfo, bottomRowHeight
-        )
+        val configuredHeight = clipboardLayoutParams.bottomRowKeyboardHeight
+        val bottomRowHeight = if (configuredHeight > 0) {
+            maxOf(configuredHeight - keyboardView.paddingBottom, configuredHeight / 2)
+        } else null
+        val kls = if (bottomRowHeight != null) {
+            KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo, bottomRowHeight)
+        } else {
+            KeyboardLayoutSet.Builder.buildEmojiClipBottomRow(context, editorInfo)
+        }
         val keyboard = kls.getKeyboard(KeyboardElement.CLIPBOARD_BOTTOM_ROW)
         keyboardView.setKeyboard(keyboard)
     }
