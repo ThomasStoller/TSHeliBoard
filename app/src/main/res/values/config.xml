@@ -77,6 +77,8 @@
 
     <!-- Clipboard keyboard -->
     <integer name="config_clipboard_keyboard_col_count">2</integer>
+    <integer name="config_sticker_keyboard_col_count">4</integer>
+    <dimen name="config_history_tab_height">36dp</dimen>
 
     <!-- Floating keyboard -->
     <dimen name="config_floating_handle_height">30dp</dimen>

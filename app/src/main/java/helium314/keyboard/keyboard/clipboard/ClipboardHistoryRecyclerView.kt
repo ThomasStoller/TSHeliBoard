@@ -23,11 +23,14 @@ class ClipboardHistoryRecyclerView @JvmOverloads constructor(
     private val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
         override fun onMove(recyclerView: RecyclerView, viewHolder: ViewHolder, target: ViewHolder) = false
         override fun getSwipeDirs(recyclerView: RecyclerView, viewHolder: ViewHolder): Int {
+            if (adapter !is ClipboardAdapter)
+                return 0 // stickers are deleted via long-press, not swipe
             if (historyManager?.canRemove(viewHolder.absoluteAdapterPosition) == false)
                 return 0 // block swipe for pinned items
             return super.getSwipeDirs(recyclerView, viewHolder)
         }
         override fun onSwiped(viewHolder: ViewHolder, dir: Int) {
+            if (adapter !is ClipboardAdapter) return
             historyManager?.removeEntry(viewHolder.absoluteAdapterPosition)
             adapter?.notifyItemRemoved(viewHolder.absoluteAdapterPosition)
         }

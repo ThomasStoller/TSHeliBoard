@@ -27,6 +27,7 @@ import helium314.keyboard.event.Event
 import helium314.keyboard.keyboard.KeyboardLayoutSet.Companion.KeyboardLayoutSetException
 import helium314.keyboard.keyboard.KeyboardTheme.Companion.getKeyboardTheme
 import helium314.keyboard.keyboard.clipboard.ClipboardHistoryView
+import helium314.keyboard.keyboard.clipboard.HistoryMode
 import helium314.keyboard.keyboard.emoji.EmojiPalettesView
 import helium314.keyboard.keyboard.internal.KeyboardState
 import helium314.keyboard.keyboard.internal.LayoutDirective
@@ -103,6 +104,7 @@ class KeyboardSwitcher private constructor() {
     val clipboardStrip get() = inputView?.mainKeyboardFrame?.stripContainer?.clipboardStrip
     val isShowingEmojiPalettes get() = emojiPalettes?.isShown == true
     val isShowingClipboardHistory get() = clipboardHistory?.isShown == true
+    val isShowingStickers get() = clipboardHistory?.isShowingStickers == true
     val isShowingPopupKeysPanel get () = !isShowingEmojiPalettes && !isShowingClipboardHistory && mainKeyboardView?.isShowingPopupKeysPanel == true
     val visibleKeyboardView get() = when {
         isShowingEmojiPalettes -> inputView?.emojiPalettesView
@@ -384,6 +386,7 @@ class KeyboardSwitcher private constructor() {
     fun reloadMainKeyboard() {
         // Reload the entire keyboard, and switch to the previous layout
         val wasEmoji = isShowingEmojiPalettes
+        val wasStickers = isShowingStickers
         val wasClipboard = isShowingClipboardHistory
         loadKeyboard(
             latinIME.currentInputEditorInfo, Settings.getValues(),
@@ -391,6 +394,8 @@ class KeyboardSwitcher private constructor() {
         )
         if (wasEmoji) {
             setEmojiKeyboard()
+        } else if (wasStickers) {
+            setStickersKeyboard()
         } else if (wasClipboard) {
             setClipboardKeyboard()
         }
@@ -502,6 +507,8 @@ class KeyboardSwitcher private constructor() {
 
     fun setClipboardKeyboard() = state.setLayout(LayoutDirective.Utility.CLIPBOARD)
 
+    fun setStickersKeyboard() = state.setLayout(LayoutDirective.Utility.STICKERS)
+
     fun toggleLayout(layout: LayoutDirective.Utility, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) =
         state.toggleLayout(layout, autoCapsFlags, recapitalizeMode)
 
@@ -575,10 +582,14 @@ class KeyboardSwitcher private constructor() {
             inputView.emojiPalettesView.isGone = false
         }
 
-        override fun setClipboardKeyboard() {
+        override fun setClipboardKeyboard() = showHistory(HistoryMode.CLIPS)
+
+        override fun setStickersKeyboard() = showHistory(HistoryMode.STICKERS)
+
+        private fun showHistory(mode: HistoryMode) {
             val inputView = inputView ?: return
             if (KeyboardState.SwitchActions.DEBUG_ACTION) {
-                Log.d(TAG, "setClipboardKeyboard")
+                Log.d(TAG, "showHistory($mode)")
             }
             inputView.wrapperView.isGone = false
             inputView.keyboardFrame.isGone = false
@@ -591,7 +602,7 @@ class KeyboardSwitcher private constructor() {
             emojiPalettes?.isGone = true
             inputView.clipboardHistoryView.startClipboardHistory(
                 latinIME.clipboardHistoryManager, inputView.keyboardView.keyVisualAttribute,
-                latinIME.currentInputEditorInfo, latinIME.mKeyboardActionListener
+                latinIME.currentInputEditorInfo, latinIME.mKeyboardActionListener, mode
             )
             inputView.clipboardHistoryView.isGone = false
         }

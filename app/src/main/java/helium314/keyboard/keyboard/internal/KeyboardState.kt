@@ -35,6 +35,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         fun setAlphabetKeyboard(shiftMode: ShiftMode)
         fun setEmojiKeyboard()
         fun setClipboardKeyboard()
+        fun setStickersKeyboard()
         fun setNumpadKeyboard()
         fun setDpadKeyboard()
         fun setSymbolsKeyboard()
@@ -170,6 +171,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
             Utility.SYMBOLS_SHIFTED -> switchActions.setSymbolsShiftedKeyboard()
             Utility.EMOJI -> switchActions.setEmojiKeyboard()
             Utility.CLIPBOARD -> switchActions.setClipboardKeyboard()
+            Utility.STICKERS -> switchActions.setStickersKeyboard()
             Utility.NUMPAD -> switchActions.setNumpadKeyboard()
             Utility.DPAD -> switchActions.setDpadKeyboard()
         }
@@ -472,8 +474,10 @@ class KeyboardState(private val switchActions: SwitchActions) {
             KeyCode.ALPHA -> resetToAlpha(autoCapsFlags, recapitalizeMode)
             // Note: Printing clipboard content is handled in InputLogic.handleFunctionalEvent
             KeyCode.CLIPBOARD -> if (Settings.getValues().mClipboardHistoryEnabled) {
-                toggleLayout(Utility.CLIPBOARD, autoCapsFlags, recapitalizeMode)
+                if (mode == Mode.STICKERS) resetToAlpha(autoCapsFlags, recapitalizeMode)
+                else toggleLayout(Utility.CLIPBOARD, autoCapsFlags, recapitalizeMode)
             }
+            KeyCode.STICKERS -> toggleLayout(Utility.STICKERS, autoCapsFlags, recapitalizeMode)
             KeyCode.NUMPAD -> toggleLayout(Utility.NUMPAD, autoCapsFlags, recapitalizeMode)
             KeyCode.DPAD -> toggleLayout(Utility.DPAD, autoCapsFlags, recapitalizeMode)
             KeyCode.SYMBOL -> toggleLayout(Utility.SYMBOLS, autoCapsFlags, recapitalizeMode)
@@ -503,6 +507,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         SYMBOLS_SHIFTED,
         EMOJI,
         CLIPBOARD,
+        STICKERS,
         NUMPAD,
         DPAD,
     ;
@@ -513,6 +518,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
                 SYMBOLS_SHIFTED -> Utility.SYMBOLS_SHIFTED
                 EMOJI -> Utility.EMOJI
                 CLIPBOARD -> Utility.CLIPBOARD
+                STICKERS -> Utility.STICKERS
                 NUMPAD -> Utility.NUMPAD
                 DPAD -> Utility.DPAD
             }

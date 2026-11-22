@@ -40,9 +40,9 @@ class ClipboardLayoutParams(ctx: Context) {
         listHeight = defaultKeyboardHeight - bottomRowKeyboardHeight - bottomPadding + offset.toInt()
     }
 
-    fun setListProperties(recycler: RecyclerView) {
+    fun setListProperties(recycler: RecyclerView, topOffset: Int = 0) {
         (recycler.layoutParams as FrameLayout.LayoutParams).apply {
-            height = listHeight
+            height = (listHeight - topOffset).coerceAtLeast(0)
             recycler.layoutParams = this
         }
     }

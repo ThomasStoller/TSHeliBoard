@@ -9,11 +9,11 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2"
     tools:ignore="MissingTranslation">
     <!-- Name of Android spell checker service. The app name should not be translated. -->
-    <string name="spell_checker_service_name">HeliBoard Spell Checker</string>
+    <string name="spell_checker_service_name">TSHeliBoard Spell Checker</string>
     <!-- Title for IME settings screen. The app name should not be translated. -->
-    <string name="ime_settings">HeliBoard Settings</string>
+    <string name="ime_settings">TSHeliBoard Settings</string>
     <!-- Title for the spell checking service settings screen. The app name should not be translated. -->
-    <string name="android_spell_checker_settings">HeliBoard Spell Checker Settings</string>
+    <string name="android_spell_checker_settings">TSHeliBoard Spell Checker Settings</string>
     <!-- Option to provide vibrate/haptic feedback on keypress -->
     <string name="vibrate_on_keypress">Vibrate on keypress</string>
     <!-- Option to provide vibrate/haptic feedback on keypress even in do not disturb mode -->
@@ -354,6 +354,18 @@
     <string name="copy" tools:keep="@string/copy" translatable="false">@android:string/copy</string>
     <string name="cut" tools:keep="@string/cut" translatable="false">@android:string/cut</string>
     <string name="clipboard" tools:keep="@string/clipboard">Clipboard</string>
+    <string name="stickers" tools:keep="@string/stickers" translatable="false">Stickers</string>
+    <string name="clips" tools:keep="@string/clips" translatable="false">Clips</string>
+    <string name="stickers_empty" translatable="false">No stickers yet\nShare an image to TSHeliBoard or tap +</string>
+    <string name="add_stickers" translatable="false">Add stickers</string>
+    <string name="sticker_deleted" translatable="false">Sticker deleted</string>
+    <string name="sticker_import_failed" translatable="false">Could not import stickers</string>
+    <string name="sticker_app_no_image_support" translatable="false">This app does not accept images</string>
+    <string name="sticker_content_description" translatable="false">Sticker</string>
+    <plurals name="stickers_imported" translatable="false">
+        <item quantity="one">%d sticker added</item>
+        <item quantity="other">%d stickers added</item>
+    </plurals>
     <string name="clear_clipboard" tools:keep="@string/clear_clipboard">Clear clipboard</string>
     <string name="voice" tools:keep="@string/voice">Voice input</string>
     <string name="numpad" tools:keep="@string/numpad" translatable="false">@string/layout_numpad</string>

@@ -4,7 +4,9 @@ package helium314.keyboard.keyboard.clipboard
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.Typeface
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
@@ -12,6 +14,8 @@ import android.view.inputmethod.EditorInfo
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
 import helium314.keyboard.event.HapticEvent
 import helium314.keyboard.keyboard.KeyboardActionListener
@@ -24,6 +28,10 @@ import helium314.keyboard.keyboard.PointerTracker
 import helium314.keyboard.keyboard.internal.KeyDrawParams
 import helium314.keyboard.keyboard.internal.KeyVisualAttributes
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.keyboard.sticker.Sticker
+import helium314.keyboard.keyboard.sticker.StickerAdapter
+import helium314.keyboard.keyboard.sticker.StickerImportActivity
+import helium314.keyboard.keyboard.sticker.StickerRepository
 import helium314.keyboard.latin.ClipboardHistoryManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.common.ColorType
@@ -38,6 +46,8 @@ import helium314.keyboard.latin.utils.onClickToolbarKey
 import helium314.keyboard.latin.utils.onLongClickToolbarKey
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.setToolbarButtonsActivatedStateOnPrefChange
+
+enum class HistoryMode { CLIPS, STICKERS }
 
 @SuppressLint("CustomViewStyleable")
 class ClipboardHistoryView @JvmOverloads constructor(
@@ -56,6 +66,17 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private lateinit var placeholderView: TextView
     private val toolbarKeys = mutableListOf<ImageButton>()
     private lateinit var clipboardAdapter: ClipboardAdapter
+
+    private lateinit var stickerAdapter: StickerAdapter
+    private lateinit var tabClips: TextView
+    private lateinit var tabStickers: TextView
+    private lateinit var addStickersButton: ImageButton
+    private var mode = HistoryMode.CLIPS
+    private lateinit var currentEditorInfo: EditorInfo
+    private var labelSize = 0f
+    private val tabBarHeight by lazy { resources.getDimensionPixelSize(R.dimen.config_history_tab_height) }
+
+    val isShowingStickers get() = mode == HistoryMode.STICKERS
 
     lateinit var keyboardActionListener: KeyboardActionListener
     private lateinit var clipboardHistoryManager: ClipboardHistoryManager
@@ -89,15 +110,24 @@ class ClipboardHistoryView @JvmOverloads constructor(
             itemBackgroundId = keyBackgroundId
             pinnedIconResId = pinIconId
         }
+        stickerAdapter = StickerAdapter(clipboardLayoutParams, ::onStickerClick, ::onStickerLongClick).apply {
+            itemBackgroundId = keyBackgroundId
+        }
         placeholderView = findViewById(R.id.clipboard_empty_view)
         clipboardRecyclerView = findViewById<ClipboardHistoryRecyclerView>(R.id.clipboard_list).apply {
             val colCount = resources.getInteger(R.integer.config_clipboard_keyboard_col_count)
             layoutManager = StaggeredGridLayoutManager(colCount, StaggeredGridLayoutManager.VERTICAL)
             @Suppress("deprecation") // "no cache" should be fine according to warning in https://developer.android.com/reference/android/view/ViewGroup#setPersistentDrawingCache(int)
             persistentDrawingCache = PERSISTENT_NO_CACHE
-            clipboardLayoutParams.setListProperties(this)
+            clipboardLayoutParams.setListProperties(this, tabBarHeight)
             placeholderView = this@ClipboardHistoryView.placeholderView
         }
+        tabClips = findViewById(R.id.history_tab_clips)
+        tabStickers = findViewById(R.id.history_tab_stickers)
+        addStickersButton = findViewById(R.id.history_add_stickers)
+        tabClips.setOnClickListener { setMode(HistoryMode.CLIPS) }
+        tabStickers.setOnClickListener { setMode(HistoryMode.STICKERS) }
+        addStickersButton.setOnClickListener { startStickerImport() }
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip!!
         getEnabledClipboardToolbarKeys(context.prefs()).forEach {
             val key = createToolbarKey(context, it)
@@ -143,9 +173,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
             historyManager: ClipboardHistoryManager,
             keyVisualAttr: KeyVisualAttributes?,
             editorInfo: EditorInfo,
-            keyboardActionListener: KeyboardActionListener
+            keyboardActionListener: KeyboardActionListener,
+            initialMode: HistoryMode = HistoryMode.CLIPS
     ) {
         clipboardHistoryManager = historyManager
+        currentEditorInfo = editorInfo
         initialize()
         setupToolbarKeys()
         historyManager.prepareClipboardHistory()
@@ -158,18 +190,27 @@ class ClipboardHistoryView @JvmOverloads constructor(
         KeyboardTypeface.customTypeface()?.let { params.mTypeface = it }
         setupClipKey(params)
         setupBottomRowKeyboard(editorInfo, keyboardActionListener)
+        labelSize = params.mLabelSize.toFloat()
 
         placeholderView.apply {
             KeyboardTypeface.applyToTextView(this)
             setTextColor(params.mTextColor)
-            setTextSize(TypedValue.COMPLEX_UNIT_PX, params.mLabelSize.toFloat() * 2)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize * 2)
+        }
+        tabClips.apply {
+            KeyboardTypeface.applyToTextView(this)
+            setTextColor(params.mTextColor)
+        }
+        tabStickers.apply {
+            KeyboardTypeface.applyToTextView(this)
+            setTextColor(params.mTextColor)
         }
         clipboardRecyclerView.apply {
             adapter = clipboardAdapter
             val keyboardWidth = ResourceUtils.getKeyboardWidth(context, settings.current)
             layoutParams.width = keyboardWidth
             // new ClipboardLayoutParams means ClipboardAdapter has wrong gaps, but that's ok (only relevant when resizing floating keyboard)
-            ClipboardLayoutParams(context).setListProperties(this)
+            ClipboardLayoutParams(context).setListProperties(this, tabBarHeight)
 
             // set side padding
             val keyboardAttr = context.obtainStyledAttributes(
@@ -186,13 +227,88 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
         // absurd workaround so Android sets the correct color from stateList (depending on "activated")
         toolbarKeys.forEach { it.isEnabled = false; it.isEnabled = true }
+        setMode(initialMode)
     }
 
     fun stopClipboardHistory() {
+        mode = HistoryMode.CLIPS
         if (!this::clipboardAdapter.isInitialized) return
         clipboardRecyclerView.adapter = null
         clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardAdapter.clipboardHistoryManager = null
+    }
+
+    private fun setMode(newMode: HistoryMode) {
+        if (!this::clipboardAdapter.isInitialized) return
+        mode = newMode
+        val showStickers = newMode == HistoryMode.STICKERS
+        if (showStickers) {
+            clipboardHistoryManager.setHistoryChangeListener(null)
+            clipboardAdapter.clipboardHistoryManager = null
+            clipboardRecyclerView.layoutManager = StaggeredGridLayoutManager(
+                resources.getInteger(R.integer.config_sticker_keyboard_col_count),
+                StaggeredGridLayoutManager.VERTICAL
+            )
+            stickerAdapter.submit(StickerRepository.list(context))
+            clipboardRecyclerView.adapter = stickerAdapter
+            placeholderView.text = context.getString(R.string.stickers_empty)
+            placeholderView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        } else {
+            clipboardHistoryManager.setHistoryChangeListener(this)
+            clipboardAdapter.clipboardHistoryManager = clipboardHistoryManager
+            clipboardRecyclerView.layoutManager = StaggeredGridLayoutManager(
+                resources.getInteger(R.integer.config_clipboard_keyboard_col_count),
+                StaggeredGridLayoutManager.VERTICAL
+            )
+            clipboardRecyclerView.adapter = clipboardAdapter
+            clipboardAdapter.notifyDataSetChanged()
+            placeholderView.text = "¯\\_(ツ)_/¯"
+            placeholderView.setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize * 2)
+        }
+        updateTabState()
+    }
+
+    private fun updateTabState() {
+        if (!this::tabClips.isInitialized) return
+        val stickers = mode == HistoryMode.STICKERS
+        tabClips.alpha = if (stickers) 0.6f else 1f
+        tabStickers.alpha = if (stickers) 1f else 0.6f
+        tabClips.setTypeface(null, if (stickers) Typeface.NORMAL else Typeface.BOLD)
+        tabStickers.setTypeface(null, if (stickers) Typeface.BOLD else Typeface.NORMAL)
+    }
+
+    private fun onStickerClick(sticker: Sticker) {
+        val editorMimeTypes = EditorInfoCompat.getContentMimeTypes(currentEditorInfo)
+        if (editorMimeTypes.isNotEmpty() && editorMimeTypes.none { it.startsWith("image/") }) {
+            Toast.makeText(context, R.string.sticker_app_no_image_support, Toast.LENGTH_SHORT).show()
+            return
+        }
+        keyboardActionListener.onPressKey(KeyCode.NOT_SPECIFIED, 0, 1, HapticEvent.KEY_PRESS)
+        keyboardActionListener.onContent(sticker.getContentInfo(context))
+        keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
+        if (Settings.getValues().mAlphaAfterClipHistoryEntry)
+            keyboardActionListener.onCodeInput(KeyCode.ALPHA, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+    }
+
+    private fun onStickerLongClick(sticker: Sticker) {
+        if (StickerRepository.delete(sticker)) {
+            stickerAdapter.remove(sticker)
+            Toast.makeText(context, R.string.sticker_deleted, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun startStickerImport() {
+        val intent = Intent(context, StickerImportActivity::class.java)
+            .setAction(StickerImportActivity.ACTION_IMPORT_STICKERS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { Toast.makeText(context, R.string.sticker_import_failed, Toast.LENGTH_SHORT).show() }
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility == View.VISIBLE && mode == HistoryMode.STICKERS && this::stickerAdapter.isInitialized)
+            stickerAdapter.submit(StickerRepository.list(context))
     }
 
     override fun onClick(view: View) {
@@ -218,6 +334,10 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onKeyUp(clipId: Long) {
+        if (mode == HistoryMode.STICKERS) {
+            stickerAdapter.getById(clipId)?.let { onStickerClick(it) }
+            return
+        }
         val clipContent = clipboardHistoryManager.getHistoryEntryContent(clipId)
         if (clipContent?.filename != null) keyboardActionListener.onContent(clipContent.getContentInfo(context))
         else keyboardActionListener.onTextInput(clipContent?.text)
@@ -227,15 +347,18 @@ class ClipboardHistoryView @JvmOverloads constructor(
     }
 
     override fun onClipInserted(position: Int) {
+        if (mode != HistoryMode.CLIPS) return
         clipboardAdapter.notifyItemInserted(position)
         clipboardRecyclerView.smoothScrollToPosition(position)
     }
 
     override fun onClipsRemoved(position: Int, count: Int) {
+        if (mode != HistoryMode.CLIPS) return
         clipboardAdapter.notifyItemRangeRemoved(position, count)
     }
 
     override fun onClipMoved(oldPosition: Int, newPosition: Int) {
+        if (mode != HistoryMode.CLIPS) return
         clipboardAdapter.notifyItemMoved(oldPosition, newPosition)
         clipboardAdapter.notifyItemChanged(newPosition)
         if (newPosition < oldPosition) clipboardRecyclerView.smoothScrollToPosition(newPosition)

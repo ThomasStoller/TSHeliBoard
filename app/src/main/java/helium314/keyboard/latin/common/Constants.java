@@ -214,6 +214,7 @@ public final class Constants {
             case KeyCode.LANGUAGE_SWITCH -> "languageSwitch";
             case KeyCode.EMOJI -> "emoji";
             case KeyCode.CLIPBOARD -> "clipboard";
+            case KeyCode.STICKERS -> "stickers";
             case KeyCode.SHIFT_ENTER -> "shiftEnter";
             case KeyCode.NOT_SPECIFIED -> "unspec";
             case CODE_TAB -> "tab";
