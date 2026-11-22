@@ -47,6 +47,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import androidx.core.content.edit
+import helium314.keyboard.keyboard.sticker.StickerFolder
 import helium314.keyboard.latin.checkVersionUpgrade
 import helium314.keyboard.latin.transferOldPinnedClips
 import helium314.keyboard.latin.utils.IntentUtils
@@ -205,9 +206,17 @@ private fun restoreLauncher(onError: (String) -> Unit): ManagedActivityResultLau
                             } else if (entry.name == PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
                                 val prefs = ctx.prefs()
+                                // Keep the fork's sticker folder link when restoring a backup from upstream HeliBoard,
+                                // which does not know these preferences.
+                                val stickerFolderUri = prefs.getString(StickerFolder.PREF_URI, null)
+                                val stickerFolderImported = prefs.getStringSet(StickerFolder.PREF_IMPORTED, null)
                                 prefs.edit { clear() }
                                 anyMatch = true
                                 readJsonLinesToSettings(prefLines, prefs)
+                                if (!prefs.contains(StickerFolder.PREF_URI) && stickerFolderUri != null)
+                                    prefs.edit { putString(StickerFolder.PREF_URI, stickerFolderUri) }
+                                if (!prefs.contains(StickerFolder.PREF_IMPORTED) && stickerFolderImported != null)
+                                    prefs.edit { putStringSet(StickerFolder.PREF_IMPORTED, stickerFolderImported) }
                             } else if (entry.name == PROTECTED_PREFS_FILE_NAME) {
                                 val prefLines = String(zip.readBytes()).split("\n")
                                 val protectedPrefs = ctx.protectedPrefs()

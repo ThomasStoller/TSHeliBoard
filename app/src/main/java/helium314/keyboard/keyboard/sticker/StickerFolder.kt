@@ -17,8 +17,8 @@ import kotlinx.coroutines.withContext
  * app-private sticker library. SAF is used, so no storage permission is required.
  */
 object StickerFolder {
-    private const val PREF_URI = "sticker_folder_uri"
-    private const val PREF_IMPORTED = "sticker_folder_imported"
+    const val PREF_URI = "sticker_folder_uri"
+    const val PREF_IMPORTED = "sticker_folder_imported"
     private val syncMutex = Mutex()
 
     fun getUri(context: Context): Uri? =
