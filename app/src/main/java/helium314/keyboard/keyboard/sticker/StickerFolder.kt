@@ -20,6 +20,8 @@ object StickerFolder {
     const val PREF_URI = "sticker_folder_uri"
     const val PREF_IMPORTED = "sticker_folder_imported"
     private const val PREF_REOPEN = "sticker_folder_reopen"
+    private const val PREF_LAST_SYNC = "sticker_folder_last_sync"
+    private const val RECENT_SYNC_WINDOW_MS = 3000L
     private val syncMutex = Mutex()
 
     fun getUri(context: Context): Uri? =
@@ -36,9 +38,12 @@ object StickerFolder {
             )
         }.isSuccess
         if (!granted) return false
+        val oldUri = context.prefs().getString(PREF_URI, null)
         context.prefs().edit {
             putString(PREF_URI, uri.toString())
-            remove(PREF_IMPORTED)
+            // Keep the import cache when the same folder is selected again, so nothing has to be
+            // re-checked. A changed file still re-imports because its length/timestamp changes.
+            if (oldUri != uri.toString()) remove(PREF_IMPORTED)
         }
         return true
     }
@@ -54,6 +59,15 @@ object StickerFolder {
         return true
     }
 
+    /**
+     * Whether the folder was synced very recently. The folder picker syncs before it closes, so the
+     * panel can show the imported stickers immediately without walking the SAF tree again.
+     */
+    fun wasSyncedRecently(context: Context): Boolean {
+        val last = context.prefs().getLong(PREF_LAST_SYNC, 0L)
+        return last > 0 && android.os.SystemClock.elapsedRealtime() - last < RECENT_SYNC_WINDOW_MS
+    }
+
     fun clear(context: Context) {
         getUri(context)?.let {
             runCatching {
@@ -66,12 +80,13 @@ object StickerFolder {
         context.prefs().edit {
             remove(PREF_URI)
             remove(PREF_IMPORTED)
+            remove(PREF_LAST_SYNC)
         }
     }
 
     /** Imports images that were added to the folder since the previous sync. */
     suspend fun sync(context: Context): Int = syncMutex.withLock {
-        withContext(Dispatchers.IO) {
+        val added = withContext(Dispatchers.IO) {
             runCatching {
                 val uri = getUri(context) ?: return@runCatching 0
                 val root = DocumentFile.fromTreeUri(context, uri) ?: return@runCatching 0
@@ -90,6 +105,8 @@ object StickerFolder {
                 added
             }.getOrDefault(0)
         }
+        context.prefs().edit { putLong(PREF_LAST_SYNC, android.os.SystemClock.elapsedRealtime()) }
+        added
     }
 
     private fun collectImages(dir: DocumentFile, out: MutableList<DocumentFile>) {

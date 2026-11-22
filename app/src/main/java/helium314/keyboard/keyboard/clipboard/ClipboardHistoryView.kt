@@ -312,6 +312,9 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     private fun syncStickerFolder() {
         if (syncingStickers || StickerFolder.getUri(context) == null) return
+        // The folder picker already synced before it closed. Reuse that result instead of walking
+        // the SAF tree again while the panel is opening.
+        if (StickerFolder.wasSyncedRecently(context)) return
         syncingStickers = true
         GlobalScope.launch {
             try {
