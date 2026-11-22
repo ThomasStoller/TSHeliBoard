@@ -10,7 +10,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.TS.THheliboard"
+        applicationId = "com.TS.TSHeliBoard"
         minSdk = 21
         targetSdk = 37
         versionCode = 4301
