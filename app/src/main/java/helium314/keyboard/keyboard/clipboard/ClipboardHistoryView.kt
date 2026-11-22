@@ -30,6 +30,7 @@ import helium314.keyboard.keyboard.internal.KeyVisualAttributes
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.keyboard.sticker.Sticker
 import helium314.keyboard.keyboard.sticker.StickerAdapter
+import helium314.keyboard.keyboard.sticker.StickerFolder
 import helium314.keyboard.keyboard.sticker.StickerImportActivity
 import helium314.keyboard.keyboard.sticker.StickerRepository
 import helium314.keyboard.latin.ClipboardHistoryManager
@@ -46,6 +47,8 @@ import helium314.keyboard.latin.utils.onClickToolbarKey
 import helium314.keyboard.latin.utils.onLongClickToolbarKey
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.setToolbarButtonsActivatedStateOnPrefChange
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 enum class HistoryMode { CLIPS, STICKERS }
 
@@ -71,6 +74,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private lateinit var tabClips: TextView
     private lateinit var tabStickers: TextView
     private lateinit var addStickersButton: ImageButton
+    private lateinit var folderButton: ImageButton
+    @Volatile private var syncingStickers = false
     private var mode = HistoryMode.CLIPS
     private lateinit var currentEditorInfo: EditorInfo
     private var labelSize = 0f
@@ -125,9 +130,12 @@ class ClipboardHistoryView @JvmOverloads constructor(
         tabClips = findViewById(R.id.history_tab_clips)
         tabStickers = findViewById(R.id.history_tab_stickers)
         addStickersButton = findViewById(R.id.history_add_stickers)
+        folderButton = findViewById(R.id.history_sticker_folder)
         tabClips.setOnClickListener { setMode(HistoryMode.CLIPS) }
         tabStickers.setOnClickListener { setMode(HistoryMode.STICKERS) }
         addStickersButton.setOnClickListener { startStickerImport() }
+        folderButton.setOnClickListener { startStickerFolderPicker() }
+        folderButton.setOnLongClickListener { clearStickerFolder(); true }
         val clipboardStrip = KeyboardSwitcher.getInstance().clipboardStrip!!
         getEnabledClipboardToolbarKeys(context.prefs()).forEach {
             val key = createToolbarKey(context, it)
@@ -249,10 +257,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
                 resources.getInteger(R.integer.config_sticker_keyboard_col_count),
                 StaggeredGridLayoutManager.VERTICAL
             )
-            stickerAdapter.submit(StickerRepository.list(context))
+            refreshStickers()
             clipboardRecyclerView.adapter = stickerAdapter
             placeholderView.text = context.getString(R.string.stickers_empty)
             placeholderView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            syncStickerFolder()
         } else {
             clipboardHistoryManager.setHistoryChangeListener(this)
             clipboardAdapter.clipboardHistoryManager = clipboardHistoryManager
@@ -266,6 +275,12 @@ class ClipboardHistoryView @JvmOverloads constructor(
             placeholderView.setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize * 2)
         }
         updateTabState()
+        updateFolderButton()
+    }
+
+    private fun updateFolderButton() {
+        if (this::folderButton.isInitialized)
+            folderButton.alpha = if (StickerFolder.getUri(context) != null) 1f else 0.5f
     }
 
     private fun updateTabState() {
@@ -275,6 +290,40 @@ class ClipboardHistoryView @JvmOverloads constructor(
         tabStickers.alpha = if (stickers) 1f else 0.6f
         tabClips.setTypeface(null, if (stickers) Typeface.NORMAL else Typeface.BOLD)
         tabStickers.setTypeface(null, if (stickers) Typeface.BOLD else Typeface.NORMAL)
+    }
+
+    private fun refreshStickers() {
+        if (this::stickerAdapter.isInitialized)
+            stickerAdapter.submit(StickerRepository.list(context))
+    }
+
+    private fun syncStickerFolder() {
+        if (syncingStickers || StickerFolder.getUri(context) == null) return
+        syncingStickers = true
+        GlobalScope.launch {
+            try {
+                val added = StickerFolder.sync(context)
+                if (added > 0) post {
+                    if (mode == HistoryMode.STICKERS) refreshStickers()
+                }
+            } finally {
+                syncingStickers = false
+            }
+        }
+    }
+
+    private fun startStickerFolderPicker() {
+        val intent = Intent(context, StickerImportActivity::class.java)
+            .setAction(StickerImportActivity.ACTION_PICK_STICKER_FOLDER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { Toast.makeText(context, R.string.sticker_folder_error, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun clearStickerFolder() {
+        StickerFolder.clear(context)
+        updateFolderButton()
+        Toast.makeText(context, R.string.sticker_folder_cleared, Toast.LENGTH_SHORT).show()
     }
 
     private fun onStickerClick(sticker: Sticker) {
@@ -307,8 +356,11 @@ class ClipboardHistoryView @JvmOverloads constructor(
 
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
-        if (visibility == View.VISIBLE && mode == HistoryMode.STICKERS && this::stickerAdapter.isInitialized)
-            stickerAdapter.submit(StickerRepository.list(context))
+        if (visibility == View.VISIBLE && mode == HistoryMode.STICKERS && this::stickerAdapter.isInitialized) {
+            updateFolderButton()
+            refreshStickers()
+            syncStickerFolder()
+        }
     }
 
     override fun onClick(view: View) {

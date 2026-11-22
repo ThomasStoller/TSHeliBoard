@@ -29,10 +29,39 @@ class StickerImportActivity : ComponentActivity() {
         ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris -> importAndFinish(uris) }
 
+    @SuppressLint("InvalidFragmentVersionForActivityResult") // false positive: no fragments are used
+    private val folderPicker = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri == null) {
+            finish()
+            return@registerForActivityResult
+        }
+        if (!StickerFolder.setUri(this, uri)) {
+            Toast.makeText(this, R.string.sticker_folder_error, Toast.LENGTH_SHORT).show()
+            finish()
+            return@registerForActivityResult
+        }
+        lifecycleScope.launch {
+            val added = StickerFolder.sync(this@StickerImportActivity)
+            Toast.makeText(
+                this@StickerImportActivity,
+                resources.getQuantityString(R.plurals.stickers_synced, added, added),
+                Toast.LENGTH_SHORT
+            ).show()
+            finish()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) {
-            if (intent?.action != ACTION_IMPORT_STICKERS) finish()
+            if (intent?.action != ACTION_IMPORT_STICKERS && intent?.action != ACTION_PICK_STICKER_FOLDER) finish()
+            return
+        }
+
+        if (intent?.action == ACTION_PICK_STICKER_FOLDER) {
+            folderPicker.launch(null)
             return
         }
 
@@ -85,6 +114,7 @@ class StickerImportActivity : ComponentActivity() {
     }
 
     companion object {
-        const val ACTION_IMPORT_STICKERS = "com.thoma.tsheliboard.action.IMPORT_STICKERS"
+        const val ACTION_IMPORT_STICKERS = "com.TS.TSHeliBoard.action.IMPORT_STICKERS"
+        const val ACTION_PICK_STICKER_FOLDER = "com.TS.TSHeliBoard.action.PICK_STICKER_FOLDER"
     }
 }

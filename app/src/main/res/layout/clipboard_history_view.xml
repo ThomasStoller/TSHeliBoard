@@ -47,6 +47,16 @@
             android:layout_weight="1" />
 
         <ImageButton
+            android:id="@+id/history_sticker_folder"
+            android:layout_width="@dimen/config_history_tab_height"
+            android:layout_height="@dimen/config_history_tab_height"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/sticker_folder"
+            android:padding="8dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_folder" />
+
+        <ImageButton
             android:id="@+id/history_add_stickers"
             android:layout_width="@dimen/config_history_tab_height"
             android:layout_height="@dimen/config_history_tab_height"

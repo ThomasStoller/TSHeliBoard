@@ -358,6 +358,13 @@
     <string name="clips" tools:keep="@string/clips" translatable="false">Clips</string>
     <string name="stickers_empty" translatable="false">No stickers yet\nShare an image to TSHeliBoard or tap +</string>
     <string name="add_stickers" translatable="false">Add stickers</string>
+    <string name="sticker_folder" translatable="false">Choose sticker folder (long-press to disconnect)</string>
+    <string name="sticker_folder_error" translatable="false">Could not access sticker folder</string>
+    <string name="sticker_folder_cleared" translatable="false">Sticker folder disconnected; imported stickers were kept</string>
+    <plurals name="stickers_synced" translatable="false">
+        <item quantity="one">%d sticker synced</item>
+        <item quantity="other">%d stickers synced</item>
+    </plurals>
     <string name="sticker_deleted" translatable="false">Sticker deleted</string>
     <string name="sticker_import_failed" translatable="false">Could not import stickers</string>
     <string name="sticker_app_no_image_support" translatable="false">This app does not accept images</string>
