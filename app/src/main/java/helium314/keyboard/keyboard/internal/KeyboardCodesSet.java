@@ -57,6 +57,7 @@ public final class KeyboardCodesSet {
         "key_stop_onehanded", // keep name to avoid breaking custom layouts
         "key_switch_onehanded",
         "key_emoji_search",
+        "key_stickers",
     };
 
     private static final int[] DEFAULT = {

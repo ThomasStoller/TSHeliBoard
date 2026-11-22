@@ -460,6 +460,9 @@ sealed interface KeyData : AbstractKeyData {
             KeyLabel.COMMA -> SimplePopups(getCommaPopupKeys(params))
             KeyLabel.PERIOD -> getPeriodPopups(params)
             KeyLabel.ACTION -> getActionKeyPopupKeys(params)
+            KeyLabel.EMOJI -> SimplePopups(
+                listOf("!icon/stickers|!code/key_stickers")
+            )
             KeyLabel.SHIFT -> {
                 if (params.mId.element.isAlphabet) SimplePopups(
                     listOf(

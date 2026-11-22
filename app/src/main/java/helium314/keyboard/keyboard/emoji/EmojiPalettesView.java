@@ -226,7 +226,12 @@ public final class EmojiPalettesView extends LinearLayout
         // The main keyboard expands to the entire this {@link KeyboardView}.
         final int width = ResourceUtils.getKeyboardWidth(getContext(), Settings.getValues())
                 + getPaddingLeft() + getPaddingRight();
-        final int height = ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues())
+        final MainKeyboardView mainKeyboardView = KeyboardSwitcher.getInstance().getMainKeyboardView();
+        final int mainHeight = mainKeyboardView != null ? mainKeyboardView.getHeight() : 0;
+        // Match the main keyboard height. It already includes the navigation-bar padding that
+        // startEmojiPalettes copies, so the bottom row ends above the system buttons.
+        final int height = mainHeight > 0 ? mainHeight
+                : ResourceUtils.getSecondaryKeyboardHeight(res, Settings.getValues())
                 + getPaddingTop() + getPaddingBottom();
         mEmojiCategoryPageIndicatorView.mWidth = width;
         setMeasuredDimension(width, height);
@@ -358,6 +363,13 @@ public final class EmojiPalettesView extends LinearLayout
 
     public void startEmojiPalettes(final KeyVisualAttributes keyVisualAttr,
                final EditorInfo editorInfo, final KeyboardActionListener keyboardActionListener) {
+        // The main keyboard reserves the navigation-bar area as bottom padding. Do the same so the
+        // emoji bottom row ends above the system navigation buttons instead of behind them.
+        final MainKeyboardView mainKeyboardView = KeyboardSwitcher.getInstance().getMainKeyboardView();
+        final int keyboardBottomPadding = mainKeyboardView != null ? mainKeyboardView.getPaddingBottom() : 0;
+        if (getPaddingBottom() != keyboardBottomPadding) {
+            setPadding(getPaddingLeft(), getPaddingTop(), getPaddingRight(), keyboardBottomPadding);
+        }
         initialize();
 
         setupBottomRowKeyboard(editorInfo, keyboardActionListener);

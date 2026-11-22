@@ -42,6 +42,7 @@ object KeyLabel {
     const val TAB = "tab"
     const val ESCAPE = "esc"
     const val TIMESTAMP = "timestamp"
+    const val EMOJI = "emoji"
     const val EMOJI_SEARCH = "emoji_search"
 
     /** to make sure a FlorisBoard label works when reading a JSON layout */
